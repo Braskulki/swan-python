@@ -1,0 +1,200 @@
+import subprocess
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+import pandas as pd
+
+def create_swan_input(output_dir="swan_run"):
+    """Create a basic SWAN input file with better error handling"""
+    
+    try:
+        # Create output directory
+        output_path = Path(output_dir)
+        output_path.mkdir(exist_ok=True)
+        
+        # SWAN input file content (corrected format)
+        swan_input = """
+PROJECT 'TEST' '01'
+
+SET LEVEL 0.0 MAXERR=99
+
+MODE STATIONARY
+
+CGRID REGULAR 0 0 0 1000 1000 100 100 CIRCLE 36 0.04 1.0
+
+INPGRID BOTTOM REGULAR 0 0 0 100 100 10 10
+
+READINP BOTTOM 1 'depth.dat' 4 0 FREE
+
+WIND 2.86 77.10
+
+BLOCK 'COMPGRID' NOHEAD 'output.mat' LAY 3 HSIGN TPS PDIR
+
+COMPUTE
+
+STOP
+"""
+        
+        # Write input file with absolute path
+        input_file = output_path / "INPUT"
+        with open(input_file, "w") as f:
+            f.write(swan_input)
+        
+        # Create depth file with proper format
+        depth_data = np.ones((101, 101)) * 10.0
+        depth_file = output_path / "depth.dat"
+        np.savetxt(depth_file, depth_data, fmt='%.2f')
+        
+        print(f"Created input files in: {output_path.absolute()}")
+        print(f"Input file: {input_file}")
+        print(f"Depth file: {depth_file}")
+        
+        return str(output_path)
+        
+    except Exception as e:
+        print(f"Error creating input files: {e}")
+        return None
+
+def run_swan_simulation(input_dir="swan_run"):
+    """Execute SWAN simulation with better error handling"""
+    
+    input_path = Path(input_dir)
+    if not input_path.exists():
+        print(f"Input directory {input_path} does not exist")
+        return False
+    
+    original_dir = os.getcwd()
+    
+    try:
+        os.chdir(input_path)
+        print(f"Changed to directory: {input_path.absolute()}")
+        
+        # Check if input file exists
+        if not Path("INPUT").exists():
+            print("swan.swn file not found in current directory")
+            return False
+        
+        # Try different SWAN executable names
+        swan_commands = ['swan', 'swan.exe', './swan']
+        
+        for cmd in swan_commands:
+            try:
+                print(f"Trying SWAN command: {cmd}")
+                result = subprocess.run([cmd], 
+                                      capture_output=True, 
+                                      text=True, 
+                                      timeout=300)
+                
+                print("SWAN stdout:")
+                print(result.stdout)
+                
+                if result.stderr:
+                    print("SWAN stderr:")
+                    print(result.stderr)
+                
+                if result.returncode == 0:
+                    print("SWAN simulation completed successfully")
+                    return True
+                else:
+                    print(f"SWAN returned error code: {result.returncode}")
+                    
+            except FileNotFoundError:
+                print(f"Command {cmd} not found")
+                continue
+            except subprocess.TimeoutExpired:
+                print("SWAN simulation timed out")
+                return False
+        
+        print("No working SWAN executable found")
+        return False
+        
+    except Exception as e:
+        print(f"Error running SWAN: {e}")
+        return False
+    finally:
+        os.chdir(original_dir)
+
+def plot_swan_results(input_dir="swan_run"):
+    """Read and visualize SWAN output with better file handling"""
+    
+    output_file = Path(input_dir) / "swan_output.tab"
+    
+    print(f"Looking for output file: {output_file.absolute()}")
+    
+    if not output_file.exists():
+        print("Output file not found. Checking directory contents:")
+        input_path = Path(input_dir)
+        if input_path.exists():
+            files = list(input_path.glob("*"))
+            print(f"Files in {input_path}: {[f.name for f in files]}")
+        return False
+    
+    try:
+        # Read file and examine structure
+        with open(output_file, 'r') as f:
+            lines = f.readlines()
+        
+        print(f"Output file has {len(lines)} lines")
+        print("First 10 lines:")
+        for i, line in enumerate(lines[:10]):
+            print(f"{i+1}: {line.strip()}")
+        
+        # Try to find data start
+        data_start = 0
+        for i, line in enumerate(lines):
+            if line.strip() and not line.startswith('%') and not line.startswith('#'):
+                try:
+                    # Try to parse as numbers
+                    float(line.split()[0])
+                    data_start = i
+                    break
+                except (ValueError, IndexError):
+                    continue
+        
+        print(f"Data appears to start at line {data_start + 1}")
+        
+        # Read numerical data
+        data = np.loadtxt(output_file, skiprows=data_start)
+        print(f"Data shape: {data.shape}")
+        
+        if data.size > 0:
+            plt.figure(figsize=(15, 5))
+            
+            # Plot available columns
+            n_cols = min(data.shape[1] if data.ndim > 1 else 1, 4)
+            
+            for i in range(n_cols):
+                plt.subplot(1, n_cols, i+1)
+                if data.ndim > 1:
+                    plt.plot(data[:, i])
+                    plt.title(f'Column {i+1}')
+                else:
+                    plt.plot(data)
+                    plt.title('Data')
+                plt.xlabel('Index')
+                plt.ylabel('Value')
+            
+            plt.tight_layout()
+            plt.show()
+            return True
+        else:
+            print("No numerical data found in output file")
+            return False
+            
+    except Exception as e:
+        print(f"Error reading output file: {e}")
+        return False
+
+# Main execution with better error handling
+if __name__ == "__main__":
+    print("Setting up SWAN simulation...")
+    output_dir = create_swan_input()
+    
+    if output_dir:
+        print("Running SWAN simulation...")
+        success = run_swan_simulation(output_dir)
+        
+        if success:
+            print("Simulation completed successfully!")
+            plot_swan_results(output_dir)
