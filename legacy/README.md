@@ -1,5 +1,6 @@
 # install dependencies
 - py -m pip install xarray numpy pandas netCDF4 scipy cdsapi
+- install docker and pull swan image, openeuler/swan:latest
 
 # create copernicus api file
 - account -> https://cds.climate.copernicus.eu/ -> get api on application

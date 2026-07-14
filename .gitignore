@@ -2,4 +2,4 @@ data/raw/gebco.nc
 swan_pipeline_complete/data/raw/gebco.nc
 swan_pipeline_complete/data/processed/*
 legacy\data\raw\gebco.nc
-legacy\data\raw\gebco.nc
+swan_pipeline_complete/data/publication/*

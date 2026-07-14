@@ -238,7 +238,7 @@ pip install numpy xarray netcdf4 scipy
 Optional plotting dependency:
 
 ```bash
-pip install matplotlib
+pip install matplotlib imageio
 ```
 
 ### Docker
