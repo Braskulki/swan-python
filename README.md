@@ -11,6 +11,18 @@ The pipeline generates all SWAN input files, runs the model inside a Docker cont
 
 ---
 
+## run anyfile
+
+Open terminal on file folder:
+
+Copy-Item .\FILENAME.swn INPUT
+
+docker run --rm `
+    -v ${PWD}:/work `
+    -w /work `
+    openeuler/swan:latest `
+    /opt/swan/swan.exe
+
 ## Project Structure
 
 ```text
@@ -232,7 +244,8 @@ Python 3.11+
 Install the required packages:
 
 ```bash
-pip install numpy xarray netcdf4 scipy
+pip -m install pandas cdsapi numpy xarray netcdf4 scipy matplotlib imageio
+
 ```
 
 Optional plotting dependency:

@@ -35,6 +35,12 @@ Usage:
     py publication-results.py --skip-first --vector-step 6
     py publication-results.py --no-gif
     py publication-results.py --formats png pdf
+
+py .\swan_pipeline_complete\publication-results.py `
+  --skip-first `
+  --vector-step 7 `
+  --dpi 300 `
+  --formats png pdf
 """
 
 from __future__ import annotations
@@ -362,25 +368,13 @@ def configure_axis(
     title: str,
 ) -> None:
     axis.set_title(title, pad=12, fontsize=12)
-    axis.set_xlabel("Longitude (°)", labelpad=8)
+    axis.set_xlabel("")
     axis.set_ylabel("Latitude (°)", labelpad=8)
-    axis.set_xlim(
-        float(grid.longitude.min()),
-        float(grid.longitude.max()),
-    )
-    axis.set_ylim(
-        float(grid.latitude.min()),
-        float(grid.latitude.max()),
-    )
+    axis.set_xlim(float(grid.longitude.min()), float(grid.longitude.max()))
+    axis.set_ylim(float(grid.latitude.min()), float(grid.latitude.max()))
     axis.set_aspect("equal", adjustable="box")
-    axis.grid(
-        True,
-        linewidth=0.35,
-        alpha=0.30,
-        linestyle="--",
-    )
-    axis.tick_params(direction="out", length=4, width=0.8)
-
+    axis.grid(True, linewidth=0.35, alpha=0.30, linestyle="--")
+    axis.tick_params(axis="both", direction="out", length=4, width=0.8)
 
 def wave_direction_to_vectors(
     direction_degrees: np.ndarray,
@@ -501,51 +495,38 @@ def plot_wave_map(
     hs = mask_field(hs_field.values, grid)
     direction = mask_field(dir_field.values, grid)
 
-    u, v = wave_direction_to_vectors(
-        direction,
-        arrow_mode,
-    )
-
+    u, v = wave_direction_to_vectors(direction, arrow_mode)
     invalid = ~np.isfinite(hs) | ~np.isfinite(direction)
     u[invalid] = np.nan
     v[invalid] = np.nan
 
     lon_mesh, lat_mesh = grid.mesh
 
-    figure = plt.figure(figsize=(9.2, 8.2))
-    grid_spec = figure.add_gridspec(
-        nrows=3,
-        ncols=1,
-        height_ratios=[16, 1.1, 1.2],
-        hspace=0.22,
+    figure = plt.figure(figsize=(9.2, 10.2))
+    gs = figure.add_gridspec(
+        5, 1,
+        height_ratios=[16.0, 1.00, 1.35, 1.50, 0.90],
+        hspace=0.42,
     )
 
-    axis = figure.add_subplot(grid_spec[0])
-    colorbar_axis = figure.add_subplot(grid_spec[1])
-    legend_axis = figure.add_subplot(grid_spec[2])
+    axis = figure.add_subplot(gs[0])
+    longitude_axis = figure.add_subplot(gs[1])
+    colorbar_axis = figure.add_subplot(gs[2])
+    legend_axis = figure.add_subplot(gs[3])
+    footer_axis = figure.add_subplot(gs[4])
 
     image = axis.pcolormesh(
-        lon_mesh,
-        lat_mesh,
-        hs,
+        lon_mesh, lat_mesh, hs,
         shading="auto",
         vmin=limits[0],
         vmax=limits[1],
         zorder=1,
     )
 
-    qlon, qlat, qu, qv = vector_subset(
-        grid,
-        u,
-        v,
-        vector_step,
-    )
+    qlon, qlat, qu, qv = vector_subset(grid, u, v, vector_step)
 
     axis.quiver(
-        qlon,
-        qlat,
-        qu,
-        qv,
+        qlon, qlat, qu, qv,
         angles="xy",
         scale_units="xy",
         scale=10.0,
@@ -556,51 +537,38 @@ def plot_wave_map(
     )
 
     draw_land_and_coast(axis, grid)
-
     configure_axis(
         axis,
         grid,
-        (
-            "Significant wave height and direction — "
-            f"{hs_field.timestamp:%Y-%m-%d %H:%M UTC}"
-        ),
+        f"Significant wave height and direction — {hs_field.timestamp:%Y-%m-%d %H:%M UTC}",
     )
-
     add_statistics_box(axis, hs, "m")
 
-    colorbar = figure.colorbar(
-        image,
-        cax=colorbar_axis,
-        orientation="horizontal",
-    )
-    colorbar.set_label("Significant wave height (m)")
+    longitude_axis.axis("off")
+    longitude_axis.text(0.5, 0.35, "Longitude (°)", ha="center", va="center", fontsize=11)
+
+    colorbar = figure.colorbar(image, cax=colorbar_axis, orientation="horizontal")
+    colorbar.set_label("Significant wave height (m)", labelpad=8)
+    colorbar.ax.xaxis.set_label_position("top")
+    colorbar.ax.tick_params(axis="x", pad=4)
 
     legend_axis.axis("off")
-
-    arrow_label = (
+    label = (
         "Vectors indicate wave propagation direction"
         if arrow_mode == "toward"
         else "Vectors indicate the nautical direction from which waves arrive"
     )
+    legend_axis.text(0.5, 0.55, label, ha="center", va="center", fontsize=10)
 
-    legend_axis.text(
-        0.5,
-        0.5,
-        arrow_label,
-        horizontalalignment="center",
-        verticalalignment="center",
-        fontsize=10,
+    footer_axis.axis("off")
+    footer_axis.text(
+        0.5, 0.30,
+        "SWAN 41.51A • GEBCO 2023 • ERA5",
+        ha="center", va="center", fontsize=8, color="0.4",
     )
 
-    save_figure(
-        figure,
-        output_base,
-        formats,
-        dpi,
-    )
-
+    save_figure(figure, output_base, formats, dpi)
     plt.close(figure)
-
     return output_base.with_suffix(".png")
 
 def plot_wind_map(
@@ -619,40 +587,31 @@ def plot_wind_map(
 
     lon_mesh, lat_mesh = grid.mesh
 
-    figure = plt.figure(figsize=(9.2, 8.2))
-    grid_spec = figure.add_gridspec(
-        nrows=3,
-        ncols=1,
-        height_ratios=[16, 1.1, 1.5],
-        hspace=0.22,
+    figure = plt.figure(figsize=(9.2, 10.2))
+    gs = figure.add_gridspec(
+        5, 1,
+        height_ratios=[16.0, 1.00, 1.35, 1.80, 0.90],
+        hspace=0.42,
     )
 
-    axis = figure.add_subplot(grid_spec[0])
-    colorbar_axis = figure.add_subplot(grid_spec[1])
-    legend_axis = figure.add_subplot(grid_spec[2])
+    axis = figure.add_subplot(gs[0])
+    longitude_axis = figure.add_subplot(gs[1])
+    colorbar_axis = figure.add_subplot(gs[2])
+    legend_axis = figure.add_subplot(gs[3])
+    footer_axis = figure.add_subplot(gs[4])
 
     image = axis.pcolormesh(
-        lon_mesh,
-        lat_mesh,
-        speed,
+        lon_mesh, lat_mesh, speed,
         shading="auto",
         vmin=limits[0],
         vmax=limits[1],
         zorder=1,
     )
 
-    qlon, qlat, qu, qv = vector_subset(
-        grid,
-        u,
-        v,
-        vector_step,
-    )
+    qlon, qlat, qu, qv = vector_subset(grid, u, v, vector_step)
 
     axis.quiver(
-        qlon,
-        qlat,
-        qu,
-        qv,
+        qlon, qlat, qu, qv,
         angles="xy",
         scale_units="xy",
         scale=55.0,
@@ -663,68 +622,51 @@ def plot_wind_map(
     )
 
     draw_land_and_coast(axis, grid)
-
     configure_axis(
         axis,
         grid,
-        (
-            "Wind speed and direction — "
-            f"{u_field.timestamp:%Y-%m-%d %H:%M UTC}"
-        ),
+        f"Wind speed and direction — {u_field.timestamp:%Y-%m-%d %H:%M UTC}",
     )
-
     add_statistics_box(axis, speed, "m/s")
 
-    colorbar = figure.colorbar(
-        image,
-        cax=colorbar_axis,
-        orientation="horizontal",
-    )
-    colorbar.set_label("Wind speed (m/s)")
+    longitude_axis.axis("off")
+    longitude_axis.text(0.5, 0.35, "Longitude (°)", ha="center", va="center", fontsize=11)
+
+    colorbar = figure.colorbar(image, cax=colorbar_axis, orientation="horizontal")
+    colorbar.set_label("Wind speed (m/s)", labelpad=8)
+    colorbar.ax.xaxis.set_label_position("top")
+    colorbar.ax.tick_params(axis="x", pad=4)
 
     legend_axis.set_xlim(0, 1)
     legend_axis.set_ylim(0, 1)
     legend_axis.axis("off")
 
-    # Draw a standalone wind reference vector in the dedicated legend strip.
     legend_axis.annotate(
         "",
-        xy=(0.44, 0.55),
-        xytext=(0.28, 0.55),
-        arrowprops={
-            "arrowstyle": "-|>",
-            "linewidth": 1.4,
-            "color": "black",
-        },
+        xy=(0.43, 0.72),
+        xytext=(0.28, 0.72),
+        arrowprops={"arrowstyle": "-|>", "linewidth": 1.4, "color": "black"},
     )
-
     legend_axis.text(
-        0.46,
-        0.55,
+        0.46, 0.72,
         "5 m/s reference vector",
-        horizontalalignment="left",
-        verticalalignment="center",
-        fontsize=10,
+        ha="left", va="center", fontsize=10,
     )
-
     legend_axis.text(
-        0.5,
-        0.18,
+        0.5, 0.22,
         "Background colors show wind speed; arrows show wind direction and relative magnitude.",
-        horizontalalignment="center",
-        verticalalignment="center",
-        fontsize=9,
+        ha="center", va="center", fontsize=9,
     )
 
-    save_figure(
-        figure,
-        output_base,
-        formats,
-        dpi,
+    footer_axis.axis("off")
+    footer_axis.text(
+        0.5, 0.30,
+        "SWAN 41.51A • GEBCO 2023 • ERA5",
+        ha="center", va="center", fontsize=8, color="0.4",
     )
 
+    save_figure(figure, output_base, formats, dpi)
     plt.close(figure)
-
     return output_base.with_suffix(".png")
 
 def plot_scalar_map(
@@ -744,21 +686,20 @@ def plot_scalar_map(
 
     lon_mesh, lat_mesh = grid.mesh
 
-    figure = plt.figure(figsize=(9.2, 7.8))
-    grid_spec = figure.add_gridspec(
-        nrows=2,
-        ncols=1,
-        height_ratios=[16, 1.1],
-        hspace=0.22,
+    figure = plt.figure(figsize=(9.2, 9.4))
+    gs = figure.add_gridspec(
+        4, 1,
+        height_ratios=[16.0, 1.00, 1.35, 0.90],
+        hspace=0.42,
     )
 
-    axis = figure.add_subplot(grid_spec[0])
-    colorbar_axis = figure.add_subplot(grid_spec[1])
+    axis = figure.add_subplot(gs[0])
+    longitude_axis = figure.add_subplot(gs[1])
+    colorbar_axis = figure.add_subplot(gs[2])
+    footer_axis = figure.add_subplot(gs[3])
 
     image = axis.pcolormesh(
-        lon_mesh,
-        lat_mesh,
-        values,
+        lon_mesh, lat_mesh, values,
         shading="auto",
         vmin=limits[0],
         vmax=limits[1],
@@ -766,40 +707,33 @@ def plot_scalar_map(
     )
 
     draw_land_and_coast(axis, grid)
-
     configure_axis(
         axis,
         grid,
-        (
-            f"{config['label']} — "
-            f"{field.timestamp:%Y-%m-%d %H:%M UTC}"
-        ),
+        f"{config['label']} — {field.timestamp:%Y-%m-%d %H:%M UTC}",
     )
+    add_statistics_box(axis, values, config["unit"])
 
-    add_statistics_box(
-        axis,
-        values,
-        config["unit"],
-    )
+    longitude_axis.axis("off")
+    longitude_axis.text(0.5, 0.35, "Longitude (°)", ha="center", va="center", fontsize=11)
 
-    colorbar = figure.colorbar(
-        image,
-        cax=colorbar_axis,
-        orientation="horizontal",
-    )
+    colorbar = figure.colorbar(image, cax=colorbar_axis, orientation="horizontal")
     colorbar.set_label(
-        f"{config['label']} ({config['unit']})"
+        f"{config['label']} ({config['unit']})",
+        labelpad=8,
+    )
+    colorbar.ax.xaxis.set_label_position("top")
+    colorbar.ax.tick_params(axis="x", pad=4)
+
+    footer_axis.axis("off")
+    footer_axis.text(
+        0.5, 0.30,
+        "SWAN 41.51A • GEBCO 2023 • ERA5",
+        ha="center", va="center", fontsize=8, color="0.4",
     )
 
-    save_figure(
-        figure,
-        output_base,
-        formats,
-        dpi,
-    )
-
+    save_figure(figure, output_base, formats, dpi)
     plt.close(figure)
-
     return output_base.with_suffix(".png")
 
 def normalize_frames(image_paths: list[Path]) -> list[np.ndarray]:
