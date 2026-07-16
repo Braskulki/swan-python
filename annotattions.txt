@@ -1,0 +1,15 @@
+https://matplotlib.org/stable/users/explain/colors/colormaps.html
+
+https://matplotlib.org/stable/gallery/images_contours_and_fields/pcolormesh_grids.html
+
+https://aaltoscicomp.github.io/python-for-scicomp/xarray/
+
+https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
+
+https://kpegion.github.io/Pangeo-at-AOES/examples/read-grib.html
+
+https://towardsdatascience.com/analyze-tornado-data-with-python-and-geopandas-591d5e559bb4
+
+https://geopandas.org/en/stable/index.html
+
+https://smcbrasil.ufsc.br/bases-de-dados/batimetria/

@@ -3,3 +3,4 @@ swan_pipeline_complete/data/raw/gebco.nc
 swan_pipeline_complete/data/processed/*
 legacy\data\raw\gebco.nc
 swan_pipeline_complete/data/publication/*
+swan_pipeline_complete/data/domain/*
