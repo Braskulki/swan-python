@@ -7,8 +7,9 @@ from scipy.io import loadmat
 OUTPUT_FILE = (
     Path(__file__).resolve().parent
     / "data"
-    / "processed"
-    / "output.mat"
+    / "unstructured"
+    / "case"
+    / "output_unstructured.mat"
 )
 
 

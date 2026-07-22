@@ -244,14 +244,7 @@ Python 3.11+
 Install the required packages:
 
 ```bash
-pip -m install pandas cdsapi numpy xarray netcdf4 scipy matplotlib imageio
-
-```
-
-Optional plotting dependency:
-
-```bash
-pip install matplotlib imageio
+pip -m install pandas cdsapi numpy scipy xarray netcdf4 matplotlib pandas shapely contourpy gmsh imageio pillow
 ```
 
 ### Docker

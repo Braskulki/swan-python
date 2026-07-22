@@ -3,8 +3,8 @@ import os
 
 c = cdsapi.Client()
 
-wind_path = "data/raw/wind.nc" #path considera o de execução do script, ou seja, a raiz do projeto
-waves_path = "data/raw/waves.nc"
+wind_path = "legacy/data/raw/wind.nc" #path considera o de execução do script, ou seja, a raiz do projeto
+waves_path = "legacy/data/raw/waves.nc"
 
 # 🔹 VENTO
 if not os.path.exists(wind_path):
@@ -27,7 +27,12 @@ if not os.path.exists(wind_path):
             ],
             "data_format": "netcdf",
             "download_format": "unarchived",
-            "area": [-22, -48, -25, -44]
+            "area": [
+                -8.00,    # Norte
+                -37.10,   # Oeste
+                -11.00,   # Sul
+                -34.50    # Leste
+            ]
         },
         wind_path
     )
@@ -56,7 +61,12 @@ if not os.path.exists(waves_path):
             ],
             "data_format": "netcdf",
             "download_format": "unarchived",
-            "area": [-22, -48, -25, -44]
+            "area": [
+                -8.00,    # Norte
+                -37.10,   # Oeste
+                -11.00,   # Sul
+                -34.50    # Leste
+            ]
         },
         waves_path
     )

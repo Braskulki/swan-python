@@ -13,3 +13,34 @@ https://towardsdatascience.com/analyze-tornado-data-with-python-and-geopandas-59
 https://geopandas.org/en/stable/index.html
 
 https://smcbrasil.ufsc.br/bases-de-dados/batimetria/
+
+
+Run unstructured INPUT - REMOVE SUBSAMPLE IF NOT FOR TEST
+py .\swan_pipeline_complete\generate_unstructured_pipeline.py `
+  --subsample 2
+
+Clean old data
+py .\swan_pipeline_complete\run_unstructured_swan.py --clean
+
+Run unstructured
+py .\swan_pipeline_complete\run_unstructured_swan.py
+
+
+py .\swan_pipeline_complete\generate_research_unstructured_pipeline.py
+
+py .\swan_pipeline_complete\run_research_unstructured_swan.py --clean
+
+py .\swan_pipeline_complete\publication_research_unstructured_results.py
+
+
+LINHA TEST NO INPUT aumenta saida do erro, facilitando identificar erros
+
+- TEST 50 0
+
+
+
+teste de mesh
+
+py .\swan_pipeline_complete\validate_triangle_mesh.py `
+  --directory .\swan_pipeline_complete\data\unstructured_research
+
