@@ -1,0 +1,259 @@
+{
+  "time_count": 12,
+  "source_file": "D:\\repositories\\swan-python\\swan_pipeline_complete\\data\\raw\\waves.nc",
+  "variables": {
+    "significant_wave_height": "swh",
+    "wave_period": "mwp",
+    "wave_direction": "mwd"
+  },
+  "directional_spread_degrees": 30.0,
+  "boundary_files": {
+    "east": "D:\\repositories\\swan-python\\swan_pipeline_complete\\data\\processed\\boundary_east.txt",
+    "south": "D:\\repositories\\swan-python\\swan_pipeline_complete\\data\\processed\\boundary_south.txt",
+    "legacy": "D:\\repositories\\swan-python\\swan_pipeline_complete\\data\\processed\\boundary.txt"
+  },
+  "east_records": [
+    {
+      "time": "2023-01-01T00:00:00",
+      "swan_time": "20230101.000000",
+      "hs_m": 1.6362691147942543,
+      "period_s": 7.503543626099204,
+      "direction_degrees": 95.97606084427449,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-01T06:00:00",
+      "swan_time": "20230101.060000",
+      "hs_m": 1.6670832767235124,
+      "period_s": 7.626365523760374,
+      "direction_degrees": 93.58520049614766,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-01T12:00:00",
+      "swan_time": "20230101.120000",
+      "hs_m": 1.7073530412663167,
+      "period_s": 7.708589189892208,
+      "direction_degrees": 93.27698034997047,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-01T18:00:00",
+      "swan_time": "20230101.180000",
+      "hs_m": 1.7411704519598712,
+      "period_s": 7.830643507172605,
+      "direction_degrees": 93.80393459895495,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-02T00:00:00",
+      "swan_time": "20230102.000000",
+      "hs_m": 1.7280302902623979,
+      "period_s": 7.968683136618517,
+      "direction_degrees": 94.75217791562663,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-02T06:00:00",
+      "swan_time": "20230102.060000",
+      "hs_m": 1.745375120303051,
+      "period_s": 7.836986675513889,
+      "direction_degrees": 95.01802812898177,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-02T12:00:00",
+      "swan_time": "20230102.120000",
+      "hs_m": 1.7723401899750841,
+      "period_s": 7.653528667313454,
+      "direction_degrees": 93.69637084379403,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-02T18:00:00",
+      "swan_time": "20230102.180000",
+      "hs_m": 1.7592331126225638,
+      "period_s": 7.609309632180998,
+      "direction_degrees": 93.25679401009333,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-03T00:00:00",
+      "swan_time": "20230103.000000",
+      "hs_m": 1.8705472173169948,
+      "period_s": 7.450267589806161,
+      "direction_degrees": 93.16155416774355,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-03T06:00:00",
+      "swan_time": "20230103.060000",
+      "hs_m": 1.8085581697223319,
+      "period_s": 7.254605468060335,
+      "direction_degrees": 93.40536105456282,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-03T12:00:00",
+      "swan_time": "20230103.120000",
+      "hs_m": 1.7101210121830075,
+      "period_s": 7.265487699490707,
+      "direction_degrees": 94.85615566850623,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-03T18:00:00",
+      "swan_time": "20230103.180000",
+      "hs_m": 1.6144734737159163,
+      "period_s": 7.394418347604754,
+      "direction_degrees": 97.18741478271332,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 59,
+      "source": "interpolated_side"
+    }
+  ],
+  "south_records": [
+    {
+      "time": "2023-01-01T00:00:00",
+      "swan_time": "20230101.000000",
+      "hs_m": 1.5839623835351733,
+      "period_s": 7.032298170195684,
+      "direction_degrees": 102.71694876353641,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-01T06:00:00",
+      "swan_time": "20230101.060000",
+      "hs_m": 1.6174559454123183,
+      "period_s": 7.16088066101074,
+      "direction_degrees": 99.49757110972106,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-01T12:00:00",
+      "swan_time": "20230101.120000",
+      "hs_m": 1.6611493342452581,
+      "period_s": 7.32985276778539,
+      "direction_degrees": 98.96843814636637,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-01T18:00:00",
+      "swan_time": "20230101.180000",
+      "hs_m": 1.7177695761124296,
+      "period_s": 7.464311483833525,
+      "direction_degrees": 99.15998814387984,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-02T00:00:00",
+      "swan_time": "20230102.000000",
+      "hs_m": 1.7100823803080454,
+      "period_s": 7.584365275171067,
+      "direction_degrees": 99.53148922637227,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-02T06:00:00",
+      "swan_time": "20230102.060000",
+      "hs_m": 1.7043592953019675,
+      "period_s": 7.498014947440888,
+      "direction_degrees": 99.78519042166833,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-02T12:00:00",
+      "swan_time": "20230102.120000",
+      "hs_m": 1.689331024222904,
+      "period_s": 7.455890590614741,
+      "direction_degrees": 98.4546839864534,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-02T18:00:00",
+      "swan_time": "20230102.180000",
+      "hs_m": 1.689475640654564,
+      "period_s": 7.401457860072453,
+      "direction_degrees": 98.07468497977855,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-03T00:00:00",
+      "swan_time": "20230103.000000",
+      "hs_m": 1.799142163991928,
+      "period_s": 7.256783802641763,
+      "direction_degrees": 96.7888823662424,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-03T06:00:00",
+      "swan_time": "20230103.060000",
+      "hs_m": 1.7647138959831659,
+      "period_s": 7.101777832375633,
+      "direction_degrees": 95.20565983015071,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-03T12:00:00",
+      "swan_time": "20230103.120000",
+      "hs_m": 1.7145008322265414,
+      "period_s": 7.251589887672001,
+      "direction_degrees": 96.95814336775719,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    },
+    {
+      "time": "2023-01-03T18:00:00",
+      "swan_time": "20230103.180000",
+      "hs_m": 1.6077252944310505,
+      "period_s": 7.370239388280445,
+      "direction_degrees": 99.4903779924701,
+      "directional_spread_degrees": 30.0,
+      "valid_points": 32,
+      "source": "interpolated_side"
+    }
+  ]
+}

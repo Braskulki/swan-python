@@ -92,7 +92,7 @@ py .\generate_research_unstructured_pipeline_xyz.py `
 
 
 py .\generate_research_unstructured_pipeline_xyz.py `
-  --bathymetry-xyz ".\data\processed\CENTRO.xyz" `
+  --bathymetry-xyz ".\data\processed\SUL.xyz" `
   --domain-bounds -37.0 -11.0 -34.5 -8.0 `
   --xyz-resolution 0.01 `
   --xyz-margin 0.20 `
@@ -109,3 +109,9 @@ py .\generate_research_unstructured_pipeline_xyz.py `
 ## explicação de parametros
 coast-size representa densidade proximo a costa
 offshore-size representa densidade oceanica
+
+LON_MIN = -48.20
+LON_MAX = -44.50
+
+LAT_MIN = -26.00
+LAT_MAX = -23.00
