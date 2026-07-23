@@ -7,7 +7,7 @@ starting point for research workflows and publication-quality domain figures.
 
 Workflow
 --------
-1. Read grid.json and depth.bot.
+1. Read brasil-coast.xyz and crop it to the wind/model domain.
 2. Extract the 0 m (or selected) bathymetric contour as vector lines.
 3. Polygonize the contour together with the rectangular model limits.
 4. Select the water polygon connected to the open ocean.
@@ -22,8 +22,7 @@ Workflow
 
 Inputs
 ------
-data/processed/grid.json
-data/processed/depth.bot
+data/processed/brasil-coast.xyz
 data/raw/wind.nc
 data/processed/boundary_east.txt
 data/processed/boundary_south.txt
@@ -79,7 +78,7 @@ import matplotlib.tri as mtri
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator, RegularGridInterpolator
 from shapely.geometry import (
     LineString,
     MultiLineString,
@@ -98,8 +97,7 @@ RAW_DIR = BASE_DIR / "data" / "raw"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 OUTPUT_DIR = BASE_DIR / "data" / "unstructured_research"
 
-GRID_FILE = PROCESSED_DIR / "grid.json"
-DEPTH_FILE = PROCESSED_DIR / "depth.bot"
+XYZ_BATHYMETRY_FILE = PROCESSED_DIR / "brasil-coast.xyz"
 WIND_FILE = RAW_DIR / "wind.nc"
 
 BOUNDARY_EAST_FILE = PROCESSED_DIR / "boundary_east.txt"
@@ -157,6 +155,44 @@ def parse_args() -> argparse.Namespace:
             "Bathymetric contour used as coastline/domain boundary in metres. "
             "Default: 0."
         ),
+    )
+
+    parser.add_argument(
+        "--bathymetry-xyz",
+        type=Path,
+        default=XYZ_BATHYMETRY_FILE,
+        help="XYZ bathymetry: longitude latitude elevation.",
+    )
+    parser.add_argument(
+        "--xyz-resolution",
+        type=float,
+        default=0.01,
+        help="Temporary local bathymetry grid resolution in degrees.",
+    )
+    parser.add_argument(
+        "--xyz-margin",
+        type=float,
+        default=0.20,
+        help="Crop margin around the model domain in degrees.",
+    )
+    parser.add_argument(
+        "--xyz-chunk-size",
+        type=int,
+        default=500000,
+        help="Rows read per chunk from the national XYZ file.",
+    )
+    parser.add_argument(
+        "--xyz-max-points",
+        type=int,
+        default=600000,
+        help="Maximum cropped points used by scattered interpolation.",
+    )
+    parser.add_argument(
+        "--domain-bounds",
+        type=float,
+        nargs=4,
+        metavar=("WEST", "SOUTH", "EAST", "NORTH"),
+        help="Optional explicit bounds; otherwise inferred from wind.nc.",
     )
 
     parser.add_argument(
@@ -366,43 +402,178 @@ def require_files(paths: Iterable[Path]) -> None:
         )
 
 
-def load_regular_domain() -> tuple[
-    np.ndarray,
-    np.ndarray,
-    np.ndarray,
-]:
-    metadata = json.loads(
-        GRID_FILE.read_text(encoding="utf-8")
-    )
+def infer_model_bounds_from_wind(
+    explicit_bounds: list[float] | None,
+) -> tuple[float, float, float, float]:
+    if explicit_bounds is not None:
+        west, south, east, north = map(float, explicit_bounds)
+    else:
+        with xr.open_dataset(WIND_FILE) as dataset:
+            lon_name = find_name(dataset, ("longitude", "lon", "x"))
+            lat_name = find_name(dataset, ("latitude", "lat", "y"))
+            lon = np.asarray(dataset[lon_name].values, dtype=float).reshape(-1)
+            lat = np.asarray(dataset[lat_name].values, dtype=float).reshape(-1)
 
-    longitude = np.asarray(
-        metadata["lon"],
-        dtype=np.float64,
-    )
-    latitude = np.asarray(
-        metadata["lat"],
-        dtype=np.float64,
-    )
-    depth = np.loadtxt(
-        DEPTH_FILE,
-        dtype=np.float64,
-    )
+        lon = np.where(lon > 180.0, lon - 360.0, lon)
+        west, east = float(np.nanmin(lon)), float(np.nanmax(lon))
+        south, north = float(np.nanmin(lat)), float(np.nanmax(lat))
 
-    expected_shape = (latitude.size, longitude.size)
+    if not (west < east and south < north):
+        raise ValueError("Invalid model bounds.")
 
-    if depth.shape != expected_shape:
-        raise ValueError(
-            f"depth.bot shape is {depth.shape}; "
-            f"expected {expected_shape}."
+    return west, south, east, north
+
+
+def read_cropped_xyz(
+    path: Path,
+    bounds: tuple[float, float, float, float],
+    margin: float,
+    chunk_size: int,
+) -> np.ndarray:
+    west, south, east, north = bounds
+    pieces: list[np.ndarray] = []
+
+    for chunk in pd.read_csv(
+        path,
+        sep=r"\s+",
+        comment="#",
+        header=None,
+        names=("longitude", "latitude", "elevation"),
+        usecols=(0, 1, 2),
+        dtype=np.float64,
+        chunksize=chunk_size,
+    ):
+        values = chunk.to_numpy(dtype=np.float64, copy=False)
+        values = values[np.isfinite(values).all(axis=1)]
+        if values.size == 0:
+            continue
+
+        values[:, 0] = np.where(
+            values[:, 0] > 180.0,
+            values[:, 0] - 360.0,
+            values[:, 0],
         )
 
-    if not np.all(np.diff(longitude) > 0):
-        raise ValueError("Longitude must be strictly increasing.")
+        keep = (
+            (values[:, 0] >= west - margin)
+            & (values[:, 0] <= east + margin)
+            & (values[:, 1] >= south - margin)
+            & (values[:, 1] <= north + margin)
+        )
+        if np.any(keep):
+            pieces.append(values[keep].copy())
 
-    if not np.all(np.diff(latitude) > 0):
-        raise ValueError("Latitude must be strictly increasing.")
+    if not pieces:
+        raise ValueError("No XYZ points intersect the model domain.")
 
-    return longitude, latitude, depth
+    frame = pd.DataFrame(
+        np.vstack(pieces),
+        columns=("longitude", "latitude", "elevation"),
+    )
+    frame = (
+        frame.groupby(["longitude", "latitude"], as_index=False, sort=False)
+        ["elevation"].median()
+    )
+    return frame.to_numpy(dtype=np.float64)
+
+
+def spatially_thin_xyz(
+    xyz: np.ndarray,
+    maximum_points: int,
+    bounds: tuple[float, float, float, float],
+) -> np.ndarray:
+    if xyz.shape[0] <= maximum_points:
+        return xyz
+
+    west, south, east, north = bounds
+    cells = max(1, int(math.sqrt(maximum_points)))
+    dx = max((east - west) / cells, np.finfo(float).eps)
+    dy = max((north - south) / cells, np.finfo(float).eps)
+
+    frame = pd.DataFrame(
+        xyz,
+        columns=("longitude", "latitude", "elevation"),
+    )
+    frame["ix"] = np.floor((frame["longitude"] - west) / dx).astype(np.int64)
+    frame["iy"] = np.floor((frame["latitude"] - south) / dy).astype(np.int64)
+
+    reduced = (
+        frame.groupby(["ix", "iy"], as_index=False, sort=False)
+        .agg(
+            longitude=("longitude", "mean"),
+            latitude=("latitude", "mean"),
+            elevation=("elevation", "median"),
+        )
+    )
+    values = reduced[["longitude", "latitude", "elevation"]].to_numpy(dtype=np.float64)
+    if values.shape[0] > maximum_points:
+        values = values[np.linspace(0, values.shape[0] - 1, maximum_points, dtype=int)]
+    return values
+
+
+def load_xyz_domain(
+    path: Path,
+    resolution: float,
+    margin: float,
+    chunk_size: int,
+    maximum_points: int,
+    explicit_bounds: list[float] | None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, object]]:
+    """
+    Read `longitude latitude elevation`, crop locally, and convert elevation
+    to SWAN water depth using `water_depth = -elevation`.
+    """
+    if resolution <= 0:
+        raise ValueError("--xyz-resolution must be positive.")
+    if margin < 0:
+        raise ValueError("--xyz-margin cannot be negative.")
+    if chunk_size < 1000:
+        raise ValueError("--xyz-chunk-size must be at least 1000.")
+    if maximum_points < 10000:
+        raise ValueError("--xyz-max-points must be at least 10000.")
+
+    bounds = infer_model_bounds_from_wind(explicit_bounds)
+    xyz = read_cropped_xyz(path, bounds, margin, chunk_size)
+    cropped_count = int(xyz.shape[0])
+
+    interpolation_bounds = (
+        bounds[0] - margin,
+        bounds[1] - margin,
+        bounds[2] + margin,
+        bounds[3] + margin,
+    )
+    xyz = spatially_thin_xyz(xyz, maximum_points, interpolation_bounds)
+
+    west, south, east, north = bounds
+    longitude = np.arange(west, east + resolution * 0.5, resolution)
+    latitude = np.arange(south, north + resolution * 0.5, resolution)
+    xx, yy = np.meshgrid(longitude, latitude)
+
+    samples = xyz[:, :2]
+    water_depth = -xyz[:, 2]
+
+    linear = LinearNDInterpolator(samples, water_depth, fill_value=np.nan, rescale=True)
+    depth = np.asarray(linear(xx, yy), dtype=np.float64)
+
+    missing = ~np.isfinite(depth)
+    nearest_fill_count = int(np.count_nonzero(missing))
+    if nearest_fill_count:
+        nearest = NearestNDInterpolator(samples, water_depth, rescale=True)
+        depth[missing] = nearest(xx[missing], yy[missing])
+
+    metadata = {
+        "source": str(path),
+        "format": "longitude latitude elevation",
+        "conversion": "water_depth = -elevation",
+        "bounds": {"west": west, "south": south, "east": east, "north": north},
+        "crop_margin_degree": float(margin),
+        "grid_resolution_degree": float(resolution),
+        "cropped_point_count": cropped_count,
+        "interpolation_point_count": int(xyz.shape[0]),
+        "nearest_fill_cell_count": nearest_fill_count,
+        "grid_shape": [int(latitude.size), int(longitude.size)],
+    }
+    return longitude, latitude, depth, metadata
 
 
 def depth_interpolator(
@@ -2945,9 +3116,11 @@ def write_metadata(
     quality: pd.DataFrame,
     depth_qa: dict[str, float | int],
     mesh_clip_qa: dict[str, float | int],
+    bathymetry_metadata: dict[str, object],
 ) -> None:
     metadata = {
         "generator": "Gmsh coastline-following research mesh",
+        "bathymetry": bathymetry_metadata,
         "coast_level_m": args.coast_level,
         "minimum_water_depth_m": args.minimum_water_depth,
         "depth_repair_tolerance_m": args.depth_repair_tolerance,
@@ -3046,10 +3219,10 @@ def main() -> int:
     args = parse_args()
 
     try:
+        args.bathymetry_xyz = args.bathymetry_xyz.resolve()
         require_files(
             (
-                GRID_FILE,
-                DEPTH_FILE,
+                args.bathymetry_xyz,
                 WIND_FILE,
                 BOUNDARY_EAST_FILE,
                 BOUNDARY_SOUTH_FILE,
@@ -3061,8 +3234,25 @@ def main() -> int:
             exist_ok=True,
         )
 
-        longitude, latitude, regular_depth = (
-            load_regular_domain()
+        (
+            longitude,
+            latitude,
+            regular_depth,
+            bathymetry_metadata,
+        ) = load_xyz_domain(
+            path=args.bathymetry_xyz,
+            resolution=args.xyz_resolution,
+            margin=args.xyz_margin,
+            chunk_size=args.xyz_chunk_size,
+            maximum_points=args.xyz_max_points,
+            explicit_bounds=args.domain_bounds,
+        )
+
+        print(
+            "XYZ bathymetry: "
+            f"{bathymetry_metadata['cropped_point_count']} cropped points; "
+            f"{bathymetry_metadata['interpolation_point_count']} used; "
+            f"grid={bathymetry_metadata['grid_shape']}"
         )
 
         raw_domain, raw_coastlines = build_water_polygon(
@@ -3271,9 +3461,10 @@ def main() -> int:
             quality,
             depth_qa,
             mesh_clip_qa,
+            bathymetry_metadata,
         )
 
-        print("\nResearch unstructured case generated.")
+        print("\nResearch unstructured XYZ-bathymetry case generated.")
         print(f"Nodes:       {points.shape[0]}")
         print(f"Triangles:   {triangles.shape[0]}")
         print(

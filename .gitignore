@@ -6,3 +6,6 @@ swan_pipeline_complete/data/publication/*
 swan_pipeline_complete/data/domain/*
 swan_pipeline_complete/data/unstructured
 swan_pipeline_complete/data/publication-litoral-SP
+swan_pipeline_complete/data/unstructured_research
+swan_pipeline_complete/backup
+swan_pipeline_complete/results-triangular
