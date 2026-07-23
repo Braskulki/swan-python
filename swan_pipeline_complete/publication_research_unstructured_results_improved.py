@@ -32,6 +32,9 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -1227,6 +1230,154 @@ def write_gif(
         loop=0,
     )
 
+    print(f"Created GIF: {output}")
+
+
+def resolve_ffmpeg_executable() -> str:
+    """Return an available FFmpeg executable."""
+    executable = shutil.which("ffmpeg")
+
+    if executable:
+        return executable
+
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception as exc:
+        raise RuntimeError(
+            "FFmpeg was not found. Confirm that 'ffmpeg -version' works "
+            "or install the fallback with: py -m pip install imageio-ffmpeg"
+        ) from exc
+
+
+def _ffmpeg_concat_path(path: Path) -> str:
+    """Format a path for an FFmpeg concat-demuxer file."""
+    resolved = path.resolve().as_posix()
+    return resolved.replace("'", "'\\''")
+
+
+def write_mp4(
+    paths: list[Path],
+    output: Path,
+    duration: float,
+) -> None:
+    """
+    Create MP4 directly from the existing PNG files.
+
+    The concat demuxer preserves the requested duration without loading all
+    images into Python or creating repeated temporary PNG frames. Frames are
+    reduced only when wider than 1920 pixels, and x264 uses one thread to keep
+    memory usage predictable.
+    """
+    existing_paths = [path.resolve() for path in paths if path.is_file()]
+
+    if len(existing_paths) < 2:
+        print(
+            f"MP4 skipped for {output.name}: "
+            f"{len(existing_paths)} PNG frame(s) available."
+        )
+        return
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg = resolve_ffmpeg_executable()
+    frame_duration = max(float(duration), 0.01)
+
+    with tempfile.TemporaryDirectory(prefix="swan_ffmpeg_") as temp_dir:
+        concat_file = Path(temp_dir) / "frames.txt"
+        lines: list[str] = []
+
+        for path in existing_paths:
+            lines.append(f"file '{_ffmpeg_concat_path(path)}'")
+            lines.append(f"duration {frame_duration:.6f}")
+
+        # The concat demuxer needs the last frame repeated so its duration is
+        # honored as well.
+        lines.append(f"file '{_ffmpeg_concat_path(existing_paths[-1])}'")
+        concat_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        command = [
+            ffmpeg,
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(concat_file),
+            "-vf",
+            "scale='min(1920,iw)':-2:flags=lanczos,format=yuv420p",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "medium",
+            "-crf",
+            "20",
+            "-threads",
+            "1",
+            "-movflags",
+            "+faststart",
+            str(output),
+        ]
+
+        print("\nRunning FFmpeg:")
+        print(subprocess.list2cmdline(command))
+
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    if result.returncode != 0:
+        message = result.stderr or result.stdout or "Unknown FFmpeg error."
+        raise RuntimeError(
+            f"FFmpeg failed while creating:\n{output}\n\n"
+            f"Command:\n{subprocess.list2cmdline(command)}\n\n"
+            f"FFmpeg output:\n{message}"
+        )
+
+    if not output.is_file() or output.stat().st_size == 0:
+        raise RuntimeError(
+            f"FFmpeg finished without creating a valid MP4: {output}"
+        )
+
+    print(f"Created MP4: {output}")
+
+
+def write_animations(
+    paths: list[Path],
+    base_output: Path,
+    duration: float,
+    create_gif: bool = True,
+) -> None:
+    """Create GIF and MP4 from the same ordered PNG frames."""
+    existing_paths = [path for path in paths if path.is_file()]
+
+    if len(existing_paths) < 2:
+        print(
+            f"Animation skipped for {base_output.name}: "
+            f"{len(existing_paths)} PNG frame(s) available."
+        )
+        return
+
+    if create_gif:
+        write_gif(
+            existing_paths,
+            base_output.with_suffix(".gif"),
+            duration,
+        )
+
+    write_mp4(
+        existing_paths,
+        base_output.with_suffix(".mp4"),
+        duration,
+    )
+
 
 def main() -> None:
     args = parse_args()
@@ -1403,34 +1554,28 @@ def main() -> None:
                 }
             )
 
-        if (
-            not args.no_gif
-            and "png" in args.formats
-            and len(scalar_pngs) > 1
-        ):
-            write_gif(
+        if "png" in args.formats:
+            write_animations(
                 scalar_pngs,
-                ANIMATIONS_DIR / f"{variable}.gif",
+                ANIMATIONS_DIR / variable,
                 args.gif_duration,
+                create_gif=not args.no_gif,
             )
 
-    if (
-        not args.no_gif
-        and "png" in args.formats
-    ):
-        if len(wave_pngs) > 1:
-            write_gif(
-                wave_pngs,
-                ANIMATIONS_DIR / "wave_height_direction.gif",
-                args.gif_duration,
-            )
+    if "png" in args.formats:
+        write_animations(
+            wave_pngs,
+            ANIMATIONS_DIR / "wave_height_direction",
+            args.gif_duration,
+            create_gif=not args.no_gif,
+        )
 
-        if len(wind_pngs) > 1:
-            write_gif(
-                wind_pngs,
-                ANIMATIONS_DIR / "wind_speed_direction.gif",
-                args.gif_duration,
-            )
+        write_animations(
+            wind_pngs,
+            ANIMATIONS_DIR / "wind_speed_direction",
+            args.gif_duration,
+            create_gif=not args.no_gif,
+        )
 
     summary = pd.DataFrame(summary_rows)
 
