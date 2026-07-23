@@ -89,3 +89,23 @@ py .\generate_research_unstructured_pipeline_xyz.py `
   --smooth 0.004 `
   --minimum-boundary-edge 0.0025 `
   --boundary-collinearity-tolerance 0.00025
+
+
+py .\generate_research_unstructured_pipeline_xyz.py `
+  --bathymetry-xyz ".\data\processed\CENTRO.xyz" `
+  --domain-bounds -37.0 -11.0 -34.5 -8.0 `
+  --xyz-resolution 0.01 `
+  --xyz-margin 0.20 `
+  --mesh-attempts 8 `
+  --coast-size 0.040 `
+  --offshore-size 0.080 `
+  --refine-distance-min 0.035 `
+  --refine-distance-max 0.55 `
+  --simplify 0.0025 `
+  --smooth 0.004 `
+  --minimum-boundary-edge 0.0025 `
+  --boundary-collinearity-tolerance 0.00025
+
+## explicação de parametros
+coast-size representa densidade proximo a costa
+offshore-size representa densidade oceanica

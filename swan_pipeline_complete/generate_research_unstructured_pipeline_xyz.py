@@ -164,6 +164,17 @@ def parse_args() -> argparse.Namespace:
         help="XYZ bathymetry: longitude latitude elevation.",
     )
     parser.add_argument(
+        "--xyz-value-mode",
+        choices=("positive-depth", "negative-elevation", "auto"),
+        default="positive-depth",
+        help=(
+            "Meaning of the third XYZ column. Use 'positive-depth' for files "
+            "such as brasil-coast.xyz, where 3394 means 3394 m water depth; "
+            "'negative-elevation' when underwater values are negative; or "
+            "'auto' to infer from the cropped sample. Default: positive-depth."
+        ),
+    )
+    parser.add_argument(
         "--xyz-resolution",
         type=float,
         default=0.01,
@@ -464,7 +475,14 @@ def read_cropped_xyz(
             pieces.append(values[keep].copy())
 
     if not pieces:
-        raise ValueError("No XYZ points intersect the model domain.")
+        raise ValueError(
+            "No XYZ points intersect the model domain. "
+            f"Requested bounds with margin: "
+            f"longitude [{west - margin:.6f}, {east + margin:.6f}], "
+            f"latitude [{south - margin:.6f}, {north + margin:.6f}]. "
+            "Check the coordinate order and use "
+            "--domain-bounds WEST SOUTH EAST NORTH."
+        )
 
     frame = pd.DataFrame(
         np.vstack(pieces),
@@ -511,6 +529,41 @@ def spatially_thin_xyz(
     return values
 
 
+def xyz_values_to_water_depth(
+    values: np.ndarray,
+    mode: str,
+) -> tuple[np.ndarray, str]:
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        raise ValueError("The cropped XYZ file has no finite vertical values.")
+
+    selected_mode = mode
+    if mode == "auto":
+        positive_fraction = float(np.mean(finite >= 0.0))
+        negative_fraction = float(np.mean(finite <= 0.0))
+
+        if positive_fraction >= 0.90:
+            selected_mode = "positive-depth"
+        elif negative_fraction >= 0.90:
+            selected_mode = "negative-elevation"
+        else:
+            raise ValueError(
+                "Could not infer the XYZ vertical convention because the "
+                "cropped data contains a substantial mixture of positive and "
+                "negative values. Select --xyz-value-mode explicitly."
+            )
+
+    if selected_mode == "positive-depth":
+        water_depth = finite.copy()
+    elif selected_mode == "negative-elevation":
+        water_depth = -finite
+    else:
+        raise ValueError(f"Unsupported XYZ value mode: {selected_mode}")
+
+    return water_depth, selected_mode
+
+
+
 def load_xyz_domain(
     path: Path,
     resolution: float,
@@ -518,10 +571,11 @@ def load_xyz_domain(
     chunk_size: int,
     maximum_points: int,
     explicit_bounds: list[float] | None,
+    value_mode: str,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, object]]:
     """
     Read `longitude latitude elevation`, crop locally, and convert elevation
-    to SWAN water depth using `water_depth = -elevation`.
+    to SWAN water depth using the selected third-column convention.
     """
     if resolution <= 0:
         raise ValueError("--xyz-resolution must be positive.")
@@ -550,9 +604,17 @@ def load_xyz_domain(
     xx, yy = np.meshgrid(longitude, latitude)
 
     samples = xyz[:, :2]
-    water_depth = -xyz[:, 2]
+    water_depth, selected_value_mode = xyz_values_to_water_depth(
+        xyz[:, 2],
+        value_mode,
+    )
 
-    linear = LinearNDInterpolator(samples, water_depth, fill_value=np.nan, rescale=True)
+    linear = LinearNDInterpolator(
+        samples,
+        water_depth,
+        fill_value=np.nan,
+        rescale=True,
+    )
     depth = np.asarray(linear(xx, yy), dtype=np.float64)
 
     missing = ~np.isfinite(depth)
@@ -564,7 +626,13 @@ def load_xyz_domain(
     metadata = {
         "source": str(path),
         "format": "longitude latitude elevation",
-        "conversion": "water_depth = -elevation",
+        "xyz_value_mode_requested": value_mode,
+        "xyz_value_mode_selected": selected_value_mode,
+        "conversion": (
+            "water_depth = value"
+            if selected_value_mode == "positive-depth"
+            else "water_depth = -value"
+        ),
         "bounds": {"west": west, "south": south, "east": east, "north": north},
         "crop_margin_degree": float(margin),
         "grid_resolution_degree": float(resolution),
@@ -3246,13 +3314,15 @@ def main() -> int:
             chunk_size=args.xyz_chunk_size,
             maximum_points=args.xyz_max_points,
             explicit_bounds=args.domain_bounds,
+            value_mode=args.xyz_value_mode,
         )
 
         print(
             "XYZ bathymetry: "
             f"{bathymetry_metadata['cropped_point_count']} cropped points; "
             f"{bathymetry_metadata['interpolation_point_count']} used; "
-            f"grid={bathymetry_metadata['grid_shape']}"
+            f"grid={bathymetry_metadata['grid_shape']}; "
+            f"value mode={bathymetry_metadata['xyz_value_mode_selected']}"
         )
 
         raw_domain, raw_coastlines = build_water_polygon(
